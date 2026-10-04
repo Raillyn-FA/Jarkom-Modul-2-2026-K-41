@@ -1,4 +1,4 @@
-# Jarkom-Modul-2-2026-K-41
+<img width="1920" height="1080" alt="ss-10" src="https://github.com/user-attachments/assets/99bd9826-bd6b-4111-a572-eaae9a1cdc25" /># Jarkom-Modul-2-2026-K-41
 
 |         Nama         |     NRP     |
 |----------------------|-------------|
@@ -847,7 +847,20 @@ tcpdump -i any -A -s0 -l 'tcp dst port 80' 2>/dev/null | grep -iE '^(Host|X-Real
 
 Hasil yang diharapkan: nama node pada keluaran `curl` bergantian (obladi dan desmond, oblada dan molly); header yang tertangkap `Host: www.k41.com` (untuk vault) dan `Host: static.k41.com` (untuk core), dengan `X-Real-IP` berisi IP klien.
 
-<img width="1920" height="1080" alt="Screenshot 2026-10-01 184703" src="https://github.com/user-attachments/assets/4d8eadde-a6bd-4a71-a54c-19b72d960650" />
+<img width="1920" height="1080" alt="ss-6-oblada" src="https://github.com/user-attachments/assets/9f6c09f0-469c-4f36-a026-7cc3968ee405" />
+<img width="1920" height="1080" alt="ss-6-molly" src="https://github.com/user-attachments/assets/0e0cabd7-004a-4257-84b2-77bef46bffe4" />
+<img width="1920" height="1080" alt="ss-5-oblada" src="https://github.com/user-attachments/assets/f6a7ec3a-d748-4776-adf4-952c6ccd5c31" />
+<img width="1920" height="1080" alt="ss-5-molly" src="https://github.com/user-attachments/assets/cb5d6fda-42a0-4fab-9543-505542879c6a" />
+<img width="1920" height="1080" alt="ss-5-alpha" src="https://github.com/user-attachments/assets/d9cfbfc5-b907-42c2-9f05-04fb9808c881" />
+<img width="1920" height="1080" alt="ss-4" src="https://github.com/user-attachments/assets/7fbdd28d-354d-4881-b5af-3bb114dc5251" />
+<img width="1920" height="1080" alt="ss-3-obladi" src="https://github.com/user-attachments/assets/78f578cc-60fe-4518-ad4b-d904c62f524c" />
+<img width="1920" height="1080" alt="ss-3-desmond" src="https://github.com/user-attachments/assets/d9e608dc-4caa-42aa-9652-c5420c2fb4f1" />
+<img width="1920" height="1080" alt="ss-3-alpha" src="https://github.com/user-attachments/assets/0e9e5bb1-3318-4d75-a63d-261d714a161b" />
+<img width="1920" height="1080" alt="ss-2-obladi" src="https://github.com/user-attachments/assets/353da7bd-2e3a-4256-bfdc-ebefb2f6adb8" />
+<img width="1920" height="1080" alt="ss-2-desmond" src="https://github.com/user-attachments/assets/e76bdc03-53f8-45ae-9426-82f39a9230cd" />
+<img width="1920" height="1080" alt="ss-2-alpha" src="https://github.com/user-attachments/assets/d2a40a93-3fd2-4c7d-976c-4ab6ec98649e" />
+<img width="1920" height="1080" alt="ss-1" src="https://github.com/user-attachments/assets/e909d1ba-3ff4-4b58-b0aa-14cd66511129" />
+
 
 ## Soal 12
 Terdapat ruang khusus di penny yang yang menyimpan dokumen rahasia sindikat, oleh karena itu terapkan perlindungan basic authentication untuk path /admin. Akses ke jalur tersebut harus menolak pengunjung tanpa kredensial, dan hanya mengizinkan masuk jika menggunakan credential berikut:
@@ -919,9 +932,11 @@ curl -u 'prabs:pakar_pinter_jadi_gob***' http://www.k41.com/admin/
 
 Hasil yang diharapkan: dua perintah pertama `401 Unauthorized` (header `WWW-Authenticate: Basic`), perintah ketiga menampilkan isi halaman admin.
 
-<img width="1920" height="1080" alt="soal12_1" src="https://github.com/user-attachments/assets/38408341-192f-4778-aa46-c6c5bdab50ee" />
-
-<img width="1920" height="1080" alt="soal12_2" src="https://github.com/user-attachments/assets/12d7716e-f02f-4b63-9e9a-f1a9037ce728" />
+<img width="1920" height="1080" alt="ss-2" src="https://github.com/user-attachments/assets/b1048572-7215-47af-9ca6-194bb8c2a5c8" />
+<img width="1920" height="1080" alt="ss-1" src="https://github.com/user-attachments/assets/214d53eb-2721-4884-9c4d-a1cbe07e9a62" />
+<img width="1920" height="1080" alt="ss-5" src="https://github.com/user-attachments/assets/c6f8fe12-4049-4d46-a47b-ae1291396fd3" />
+<img width="1920" height="1080" alt="ss-4" src="https://github.com/user-attachments/assets/54211d60-cee9-42f5-8367-584dd947564b" />
+<img width="1920" height="1080" alt="ss-3" src="https://github.com/user-attachments/assets/a997d599-374e-4a78-b4d6-efc2520091ca" />
 
 ## Soal 13
 Setiap entitas dari luar harus memanggil gerbang dengan nama kanoniknya. Jika ada yang mencoba mengakses IP penny dan domain penny.xxx.com, paksa sistem untuk melakukan redirect secara permanen (status code 301) menuju www.xxx.com. Sebaliknya, jika ada yang mengakses IP abbey dan domain abbey.xxx.com, lakukan redirect sementara (status code 302) menuju static.xxx.com.
@@ -978,7 +993,17 @@ curl -I http://static.k41.com/    # kanonik abbey -> 200 (tidak dialihkan)
 
 > Catatan: konfigurasi redirect abbey tidak boleh menjadi satu-satunya server block di Nginx. Bila `static.k41.com` tidak punya server block sendiri (Soal 11), permintaan ke `static.k41.com` jatuh ke server block redirect dan menghasilkan redirect berulang ke dirinya sendiri.
 
-<img width="1920" height="1080" alt="soal13" src="https://github.com/user-attachments/assets/624be256-8efe-4414-b378-9379b17a65fe" />
+<img width="1920" height="1080" alt="ss-2" src="https://github.com/user-attachments/assets/92e9b5a5-4c94-4737-addd-727206c6c993" />
+<img width="1920" height="1080" alt="ss-1" src="https://github.com/user-attachments/assets/5693f2bf-568d-4b6c-bffc-0e76cbf681c6" />
+<img width="1920" height="1080" alt="ss-10" src="https://github.com/user-attachments/assets/22ffb953-5650-405e-84a4-875bc63da797" />
+<img width="1920" height="1080" alt="ss-9" src="https://github.com/user-attachments/assets/5a99ff35-9936-498b-b44c-55bd6d0f1906" />
+<img width="1920" height="1080" alt="ss-8" src="https://github.com/user-attachments/assets/7c7d7c38-56ee-44e2-a74e-a9378c998e8e" />
+<img width="1920" height="1080" alt="ss-7" src="https://github.com/user-attachments/assets/d45ab0a3-0c7c-4ec9-82b6-48e32c00ec96" />
+<img width="1920" height="1080" alt="ss-6" src="https://github.com/user-attachments/assets/d26b752a-0f2a-4d53-9e6f-6b5561598348" />
+<img width="1920" height="1080" alt="ss-5" src="https://github.com/user-attachments/assets/b065b2bd-563f-4c1a-9ad9-b587e09011de" />
+<img width="1920" height="1080" alt="ss-4" src="https://github.com/user-attachments/assets/b768a461-d77b-4022-ab7e-8247572ca297" />
+<img width="1920" height="1080" alt="ss-3" src="https://github.com/user-attachments/assets/b7e5bfa0-a16b-4a23-9559-4b77ac4fe03b" />
+
 
 ## Soal 14
 Di dalam The Mesh, rekam jejak tidak boleh dipalsukan oleh sistem. Pastikan access log pada setiap server web di area vault maupun area core mencatat alamat IP asli milik client (pengunjung) yang diteruskan oleh gerbang, dan bukan mencatat IP dari Penny ataupun Abbey.
@@ -1043,11 +1068,17 @@ tail -n 3 /var/log/nginx/access.log
 
 Hasil yang diharapkan: kolom alamat pada baris log terakhir berisi IP klien (`10.84.6.2` bila dari alpha), bukan `10.84.5.2` (penny) atau `10.84.4.2` (abbey).
 
-<img width="1920" height="1080" alt="soal14_1" src="https://github.com/user-attachments/assets/fb944d36-0423-49ad-bde4-a55d7f4a27d2" />
+<img width="1920" height="1080" alt="ss-3" src="https://github.com/user-attachments/assets/c4d53a12-4048-4dfe-98f9-2241de728eaa" />
+<img width="1920" height="1080" alt="ss-2" src="https://github.com/user-attachments/assets/be58bdd8-853b-46d8-8e31-84a7f580eed4" />
+<img width="1920" height="1080" alt="ss-1" src="https://github.com/user-attachments/assets/09b1c17e-1296-468d-a514-321868a9397e" />
+<img width="1920" height="1080" alt="ss-10" src="https://github.com/user-attachments/assets/e5e15664-6591-48e2-a5d7-2db27fb3120e" />
+<img width="1920" height="1080" alt="ss-9" src="https://github.com/user-attachments/assets/25fefe43-480c-423a-a489-bcb567e229c4" />
+<img width="1920" height="1080" alt="ss-8" src="https://github.com/user-attachments/assets/455440fe-45f2-4383-8394-34516c1b8a72" />
+<img width="1920" height="1080" alt="ss-7" src="https://github.com/user-attachments/assets/bb44993e-d6dd-4dda-ace6-1b4ccac7d9db" />
+<img width="1920" height="1080" alt="ss-6" src="https://github.com/user-attachments/assets/d07ed314-33f3-40d3-a0d0-a314317b1bc0" />
+<img width="1920" height="1080" alt="ss-5" src="https://github.com/user-attachments/assets/04676819-eddd-4982-98e3-32acc2a08519" />
+<img width="1920" height="1080" alt="ss-4" src="https://github.com/user-attachments/assets/848a7d3f-932b-420c-81d8-b101db8f8b65" />
 
-<img width="1920" height="1080" alt="soal14_2" src="https://github.com/user-attachments/assets/8c226657-732c-4d7e-989b-75914d1b2869" />
-
-<img width="1920" height="1080" alt="soal14_3" src="https://github.com/user-attachments/assets/1db0dd5e-65d6-4057-88f3-0dd50c555c8a" />
 
 ## Soal 15
 Rootkit menginstruksikan pembuatan jalur proxy khusus yang berdiri sendiri. Pada penny buat reverse proxy untuk path /eternal yang menyajikan directory /var/www/eternal, dan pastikan path ini dapat mengeksekusi (rendering) file php. Pada abbey, buat jalur /orion yang menyajikan directory /var/www/orion, secara murni statis tanpa perlu rendering php.
@@ -1193,9 +1224,11 @@ curl -I http://static.k41.com/orion         # 301 ke /orion/
 > Catatan: pada percobaan awal, `/orion` menghasilkan `302 Found` karena potongan konfigurasi ditempatkan pada server block redirect (Soal 13), bukan pada server block `static.k41.com`. Percobaan awal `/eternal` menghasilkan `404` karena permintaan ikut diproxy ke vault. Kunci perbaikannya: potongan khusus dimuat sebelum `ProxyPass "/"` di penny, dan include `/orion` diletakkan di dalam server block `static.k41.com` di abbey.
 
 
-<img width="1920" height="1080" alt="soal15_1" src="https://github.com/user-attachments/assets/3cf3bdf4-fceb-455d-9699-21cca851d629" />
+<img width="1920" height="1080" alt="ss-1" src="https://github.com/user-attachments/assets/9fb35506-3e88-42d4-b17a-f9dc94916c88" />
+<img width="1920" height="1080" alt="ss-4" src="https://github.com/user-attachments/assets/b643810a-1fb0-43f3-b2e9-e6c7b6e6b65c" />
+<img width="1920" height="1080" alt="ss-3" src="https://github.com/user-attachments/assets/f8b553c0-edef-4051-9f49-05955ce62a71" />
+<img width="1920" height="1080" alt="ss-2" src="https://github.com/user-attachments/assets/04129a52-0be1-484e-8edd-0b678ee018b9" />
 
-<img width="1920" height="1080" alt="soal15_2" src="https://github.com/user-attachments/assets/499b3b6d-d02f-4e50-9d65-e0ab231d586d" />
 
 ## Soal 16
 Ketahanan gerbang The Mesh harus diuji untuk menghadapi bombardir permintaan. Salah satu Klien (misal: Alpha) bertugas melakukan stress test benchmark menggunakan ApacheBench. Lakukan 250 requests dengan tingkat konkurensi (concurrencies) 10 untuk masing - masing titik akhir: www.xxx.com dan static.xxx.com. Tampilkan rangkuman hasilnya.
@@ -1235,10 +1268,9 @@ done
 
 > Catatan: pada percobaan awal, `ab` ke `static.k41.com` melaporkan `Non-2xx responses: 250` karena abbey masih membalas dengan redirect 302 (server block `static.k41.com` belum ada). Setelah Soal 11 dan 13 diperbaiki, seluruh respons bernilai 2xx.
 
+<img width="1920" height="1080" alt="ss-2" src="https://github.com/user-attachments/assets/6e33ad31-1c19-47bf-a9d6-dc4c83b9c351" />
+<img width="1920" height="1080" alt="ss-1" src="https://github.com/user-attachments/assets/9b42e2e1-61fe-4b80-b49e-bda446e76ca9" />
 
-<img width="1920" height="1080" alt="soal16_1" src="https://github.com/user-attachments/assets/d1fe78ad-4c95-47de-8dc9-c70f127d31ca" />
-
-<img width="1920" height="1080" alt="soal16_2" src="https://github.com/user-attachments/assets/00493b40-43e3-439b-a457-1603f6038746" />
 
 ## Soal 17
 Tambahkan TXT record pada DNS untuk semua klien sayap kiri dan sayap kanan (Alpha, Beta, Gamma, Delta, Epsilon). Jika DNS di-query TXT terhadap nama domain mereka (contoh: alpha.<xxxx>.com), sistem harus mengembalikan teks berupa nama hostname mereka masing-masing (contoh: "alpha").
@@ -1298,9 +1330,12 @@ for h in alpha beta gamma delta epsilon; do dig +short TXT $h.k41.com; done
 Hasil yang diharapkan: jawaban `"alpha"`, `"beta"`, `"gamma"`, `"delta"`, `"epsilon"` dengan flag `aa`, dan serial SOA prab sama dengan tedd.
 
 
-<img width="1920" height="1080" alt="soal17_1" src="https://github.com/user-attachments/assets/1efe4e4e-147e-49b0-971d-0cc20f3c762c" />
+<img width="1920" height="1080" alt="ss-2" src="https://github.com/user-attachments/assets/272b6f92-20fd-4e53-971b-9847904a40fc" />
+<img width="1920" height="1080" alt="ss-1" src="https://github.com/user-attachments/assets/884944eb-0193-4d6b-ae13-3af81bc37f56" />
+<img width="1920" height="1080" alt="ss-5" src="https://github.com/user-attachments/assets/b865f567-4091-41ba-b729-c10101698a62" />
+<img width="1920" height="1080" alt="ss-4" src="https://github.com/user-attachments/assets/3c21b9a0-f4b3-46f4-bfee-4dff8fdbed6a" />
+<img width="1920" height="1080" alt="ss-3" src="https://github.com/user-attachments/assets/84d42010-f620-4dcc-92ae-e9c714e19f29" />
 
-<img width="1920" height="1080" alt="soal17_2" src="https://github.com/user-attachments/assets/8642c60e-6e0a-4171-8340-8b5fb7c5543f" />
 
 ## Soal 18
 Ubah A record DNS milik abbey.xxx.com ke alamat IP yang fiktif (ubah secara random namun pastikan format IP valid). Naikkan nilai serial SOA di prab dan pastikan tedd ikut tersinkron. Tetapkan TTL sebesar 15 detik pada record yang relevan tersebut. Verifikasi momen yang terjadi pada tiga fase pencarian: sebelum perubahan terjadi (mengembalikan IP lama), saat perubahan baru saja terjadi dalam jeda 15 detik (masih IP lama karena cache), dan setelah batas waktu TTL habis (berubah ke IP fiktif yang baru).
@@ -1367,13 +1402,11 @@ dig +short SOA k41.com @10.84.1.3
 dig +short abbey.k41.com @10.84.1.3
 ```
 
-<img width="1920" height="1080" alt="soal18_1" src="https://github.com/user-attachments/assets/c83f801b-b433-4390-a534-f69ea94b87e6" />
+<img width="1920" height="1080" alt="ss-2" src="https://github.com/user-attachments/assets/0fd48b99-c4e2-469d-baec-4d327fe0bbbc" />
+<img width="1920" height="1080" alt="ss-1" src="https://github.com/user-attachments/assets/e8fe8d68-f168-4d23-acc8-89aa29395ec7" />
+<img width="1920" height="1080" alt="ss-4" src="https://github.com/user-attachments/assets/cd565e8c-b9f2-454b-82d1-babccc18f51c" />
+<img width="1920" height="1080" alt="ss-3" src="https://github.com/user-attachments/assets/0bf8b0eb-9821-4e0e-9617-d5475c313d78" />
 
-<img width="1920" height="1080" alt="soal18_2" src="https://github.com/user-attachments/assets/79033972-c733-408c-be6c-6aad7d3522f2" />
-
-<img width="1920" height="1080" alt="soal18_3" src="https://github.com/user-attachments/assets/f669cfa2-be2d-4cd2-8bb8-550c69943919" />
-
-<img width="1920" height="1080" alt="soal18_4" src="https://github.com/user-attachments/assets/bbb81d0c-e555-4d86-8829-cbf9b968c4ec" />
 
 ## Soal 19
 Last? But not least? Buat CNAME record yang melakukan binding dari domain internal outbound.xxx.com menuju domain eksternal http.badssl.com, Lakukan perintah curl ke http://outbound.xxx.com dan pastikan output yang dihasilkan sesuai dengan isi konten di halaman http.badssl.com.
@@ -1415,8 +1448,10 @@ curl http://http.badssl.com
 diff <(curl -s http://outbound.k41.com) <(curl -s http://http.badssl.com) && echo SAMA
 ```
 
-<img width="1920" height="1080" alt="soal19_1" src="https://github.com/user-attachments/assets/87317660-b360-4fdd-bfaa-6b1b86bdfbd0" />
-<img width="1920" height="1080" alt="soal19_2" src="https://github.com/user-attachments/assets/9927d6f1-1b55-40d8-bfd1-5d083a3eaba5" />
+<img width="1920" height="1080" alt="ss-1" src="https://github.com/user-attachments/assets/bc321649-ab8c-48ad-8767-f8c9243e415a" />
+<img width="1920" height="1080" alt="ss-3" src="https://github.com/user-attachments/assets/d74b0621-8da3-44e8-8b43-60e9d133382b" />
+<img width="1920" height="1080" alt="ss-2" src="https://github.com/user-attachments/assets/eb470cbc-2b37-40d5-ac90-75a384cf539b" />
+
 
 ## Soal 20
 Setelah semua penyelesaian selesai, pastikan semua service dan konfigurasi yang telah dikerjakan dari awal tetap berjalan normal dan berstatus autostart saat node di-restart (khusus untuk kasus ini, abaikan konfigurasi nomor 18 dan biarkan koordinat kembali normal).
@@ -1473,5 +1508,5 @@ dig +short abbey.k41.com
 ```
 
 > Catatan: paket dan konfigurasi dapat hilang bila node di-reset penuh. Karena itu seluruh langkah disimpan sebagai script di `/root` dan di folder `script/`. `jalankan-semua.sh` membangun ulang seluruh konfigurasi satu node secara berurutan.
-
-<img width="1920" height="1080" alt="soal20" src="https://github.com/user-attachments/assets/0bff5ef5-fe90-4f22-80d6-6a5616aba7ca" />
+> 
+<img width="1920" height="1080" alt="ss-16" src="https://github.com/user-attachments/assets/43096a2f-21cf-4a1d-83f6-09a0ca20f5fc" />

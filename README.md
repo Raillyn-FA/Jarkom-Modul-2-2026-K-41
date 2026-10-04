@@ -1253,6 +1253,27 @@ Tambahkan TXT record pada DNS untuk semua klien sayap kiri dan sayap kanan (Alph
 4. Menguji `dig TXT` ke prab dan tedd.
    
 ### 2. Command
+**prab** — `soal17-prab.sh`
+```
+#!/bin/bash
+ZONE=/etc/bind/jarkom/k41.com
+CHANGED=0
+
+for h in alpha beta gamma delta epsilon; do
+  if ! grep -qE "^$h[[:space:]]+IN[[:space:]]+TXT" $ZONE; then
+    echo "$h    IN  TXT  \"$h\"" >> $ZONE
+    CHANGED=1
+  fi
+done
+
+if [ $CHANGED -eq 1 ]; then
+  CUR=$(grep -E "; *Serial" $ZONE | grep -oE '[0-9]{10}')
+  sed -i "s/$CUR/$((CUR+1))/" $ZONE
+fi
+
+named-checkzone k41.com $ZONE && service named restart
+```
+
 *prab** — tambahan di `/etc/bind/jarkom/k41.com` (`soal17-prab.sh`)
 ```
 alpha    IN  TXT  "alpha"
@@ -1299,9 +1320,27 @@ Ubah A record DNS milik abbey.xxx.com ke alamat IP yang fiktif (ubah secara rand
 ### 2. Command
 **prab** — `soal18-prab.sh`
 ```sh
-apt-get install -y dnsmasq-base dnsutils
-dnsmasq -C /dev/null --port=5353 --listen-address=127.0.0.1 --bind-interfaces \
-        --no-resolv --no-hosts --server=10.84.1.2#53 --cache-size=150 --pid-file=/run/dnsmasq-test.pid
+#!/bin/bash
+ZONE=/etc/bind/jarkom/k41.com
+OLD=10.84.4.2
+NEW=192.0.2.99
+
+bump() {
+  CUR=$(grep -E "; *Serial" $ZONE | grep -oE '[0-9]{10}')
+  sed -i "s/$CUR/$((CUR+1))/" $ZONE
+}
+
+case "$1" in
+  ttl)    sed -i -E "s/^abbey[[:space:]]+(15[[:space:]]+)?IN[[:space:]]+A[[:space:]]+.*/abbey    15  IN  A  $OLD/" $ZONE ;;
+  ubah)   sed -i -E "s/^abbey[[:space:]]+(15[[:space:]]+)?IN[[:space:]]+A[[:space:]]+.*/abbey    15  IN  A  $NEW/" $ZONE ;;
+  revert) sed -i -E "s/^abbey[[:space:]]+(15[[:space:]]+)?IN[[:space:]]+A[[:space:]]+.*/abbey    IN  A      $OLD/" $ZONE ;;
+  *) echo "pakai: $0 ttl|ubah|revert"; exit 1 ;;
+esac
+
+bump
+named-checkzone k41.com $ZONE && { rndc reload k41.com 2>/dev/null || service named restart; }
+grep -E "^abbey|; *Serial" $ZONE
+
 ```
 
 Baris abbey di `/etc/bind/jarkom/k41.com` diubah dengan `sed`; contoh hasil akhir:
@@ -1349,14 +1388,23 @@ Last? But not least? Buat CNAME record yang melakukan binding dari domain intern
 4. Menjalankan `dig` dan `curl` dari klien, lalu membandingkan keluarannya dengan `curl http://http.badssl.com`.
    
 ### 2. Command
-**prab** — tambahan di `/etc/bind/jarkom/k41.com` (`soal19-prab.sh`)
+**prab** — `soal19-prab.sh`
 ```
-outbound  IN  CNAME  http.badssl.com.
+#!/bin/bash
+ZONE=/etc/bind/jarkom/k41.com
+
+if ! grep -qE "^outbound[[:space:]]+IN[[:space:]]+CNAME" $ZONE; then
+  echo "outbound IN  CNAME  http.badssl.com." >> $ZONE
+  CUR=$(grep -E "; *Serial" $ZONE | grep -oE '[0-9]{10}')
+  sed -i "s/$CUR/$((CUR+1))/" $ZONE
+fi
+
+named-checkzone k41.com $ZONE && service named restart
 ```
 
 ```sh
 named-checkzone k41.com /etc/bind/jarkom/k41.com
-service named restart        # prab, lalu tedd
+service named restart       
 ```
 
 **Verifikasi** (dari klien)

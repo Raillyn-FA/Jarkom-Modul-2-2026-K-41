@@ -1299,13 +1299,14 @@ Ketahanan gerbang The Mesh harus diuji untuk menghadapi bombardir permintaan. Sa
 ### 2. Command
 **alpha** — `soal16-alpha.sh`
 ```sh
+#!/bin/bash
 apt-get update
 apt-get install -y apache2-utils
 
-ab -n 250 -c 10 http://www.k41.com/    | tee /root/ab-www.txt
-ab -n 250 -c 10 http://static.k41.com/ | tee /root/ab-static.txt
-
-grep -E 'Concurrency Level|Time taken|Complete requests|Failed requests|Non-2xx|Requests per second|Time per request' /root/ab-www.txt /root/ab-static.txt
+for h in www static; do
+  echo "===== ${h}.k41.com ====="
+  ab -l -n 250 -c 10 http://${h}.k41.com/
+done
 ```
 
 **Rangkuman hasil**

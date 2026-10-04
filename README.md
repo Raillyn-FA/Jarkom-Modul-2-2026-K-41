@@ -1261,10 +1261,10 @@ done
 | Complete requests | 250 | 250 |
 | Concurrency level | 10 | 10 |
 | Failed requests | 0 | 0 |
-| Non-2xx responses | tidak ada | tidak ada *(setelah Soal 11 dan 13 benar)* |
-| Requests per second | 511,48 #/sec | *(isi dari hasil `ab` terbaru)* |
-| Time per request (mean) | 19,551 ms | *(isi dari hasil `ab` terbaru)* |
-| Time per request (across all concurrent) | 1,955 ms | *(isi dari hasil `ab` terbaru)* |
+| Non-2xx responses | tidak ada | tidak ada *(setelah Soal 13 benar)* |
+| Requests per second | 2396.01 #/sec | 2182.53 #/sec |
+| Time per request (mean) | 4.174 ms | 4.582 ms |
+| Time per request (across all concurrent) | 0.417 ms | 0.458 ms |
 
 > Catatan: pada percobaan awal, `ab` ke `static.k41.com` melaporkan `Non-2xx responses: 250` karena abbey masih membalas dengan redirect 302 (server block `static.k41.com` belum ada). Setelah Soal 11 dan 13 diperbaiki, seluruh respons bernilai 2xx.
 
@@ -1508,5 +1508,6 @@ dig +short abbey.k41.com
 ```
 
 > Catatan: paket dan konfigurasi dapat hilang bila node di-reset penuh. Karena itu seluruh langkah disimpan sebagai script di `/root` dan di folder `script/`. `jalankan-semua.sh` membangun ulang seluruh konfigurasi satu node secara berurutan.
-> 
-<img width="1920" height="1080" alt="ss-16" src="https://github.com/user-attachments/assets/43096a2f-21cf-4a1d-83f6-09a0ca20f5fc" />
+
+<img width="1920" height="1080" alt="ss-2" src="https://github.com/user-attachments/assets/4619ca7e-fec0-4302-9947-1883dfe82459" />
+

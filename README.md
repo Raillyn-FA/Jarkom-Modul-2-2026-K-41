@@ -787,3 +787,614 @@ curl core.k41.com/profil
 ![curl core](assets/s10-curl-core.png)
  
 > 📸 `curl core.k41.com` dan `curl core.k41.com/profil` beberapa kali, terlihat bergantian oblada dan molly.
+
+## Soal 11
+Konfigurasikan Penny (menggunakan Apache) sebagai reverse proxy yang mengarah ke semua node di area vault (Obladi & Desmond).
+
+Sementara itu, konfigurasikan Abbey (menggunakan Nginx) sebagai reverse proxy menuju area core (Oblada & Molly). Pastikan kedua gerbang ini meneruskan identitas asli pengunjung ke server backend dengan melakukan forwarding header Host dan X-Real-IP. Buktikan bahwa Penny dan Abbey berhasil mendistribusikan lalu lintas dengan tepat.
+
+### Ringkasan
+*Penny (Apache) menjadi reverse proxy sekaligus load balancer ke obladi dan desmond. Abbey (Nginx) menjadi reverse proxy sekaligus load balancer ke oblada dan molly. Keduanya meneruskan header `Host` dan `X-Real-IP`, lalu dibuktikan lewat log backend dan capture paket.*
+
+### 1. Langkah Pengerjaan
+1. Pada penny: mengaktifkan modul `proxy`, `proxy_http`, `proxy_balancer`, `lbmethod_byrequests`, `headers`, dan `rewrite`, lalu menonaktifkan site bawaan.
+2. Pada penny: membuat VirtualHost `www.k41.com` di `010-penny-www.conf`. `ProxyPreserveHost On` meneruskan header `Host` asli, `RequestHeader set X-Real-IP` meneruskan IP pengunjung, dan blok `balancer://vault` berisi obladi serta desmond dengan metode `byrequests` (round robin).
+3. Pada penny: potongan konfigurasi tambahan (`/admin` untuk Soal 12 dan `/eternal` untuk Soal 15) disimpan di `/etc/apache2/penny.d/` dan dimuat lewat `IncludeOptional` **sebelum** `ProxyPass "/"`, supaya path khusus tidak ikut diproxy ke vault.
+4. Pada abbey: memasang `nginx`, menghapus site bawaan, lalu membuat `upstream core_backend` (oblada dan molly) dan server block `static.k41.com` yang meneruskan header `Host`, `X-Real-IP`, dan `X-Forwarded-For`. Potongan tambahan (`/orion` untuk Soal 15) dimuat dari `/etc/nginx/abbey.d/`.
+5. Memvalidasi dengan `apachectl configtest` dan `nginx -t`, lalu restart masing-masing service.
+6. Menguji dari klien: permintaan harus bergantian masuk ke dua backend. Header dibuktikan dengan `tcpdump` di backend.
+   
+### 2. Command
+Pengaturan bersama (`/root/config.sh`, dipakai semua script) memuat `DOMAIN="k41.com"` beserta IP seluruh node.
+
+**penny** — `soal11-penny.sh`
+```sh
+apt-get update
+apt-get install -y apache2 apache2-utils
+a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests headers rewrite
+a2dissite 000-default.conf
+mkdir -p /etc/apache2/penny.d
+```
+
+`/etc/apache2/sites-available/010-penny-www.conf`
+```apache
+<VirtualHost *:80>
+    ServerName www.k41.com
+
+    ProxyPreserveHost On
+    RequestHeader set X-Real-IP "expr=%{REMOTE_ADDR}"
+
+    IncludeOptional /etc/apache2/penny.d/*.conf
+
+    <Proxy "balancer://vault">
+        BalancerMember "http://10.84.1.4:80"
+        BalancerMember "http://10.84.1.5:80"
+        ProxySet lbmethod=byrequests
+    </Proxy>
+    ProxyPass        "/" "balancer://vault/"
+    ProxyPassReverse "/" "balancer://vault/"
+
+    ErrorLog  ${APACHE_LOG_DIR}/penny_error.log
+    CustomLog ${APACHE_LOG_DIR}/penny_access.log combined
+</VirtualHost>
+```
+
+```sh
+a2ensite 010-penny-www.conf
+apachectl configtest
+service apache2 restart
+```
+
+**abbey** — `soal11-abbey.sh`
+```sh
+apt-get update
+apt-get install -y nginx
+rm -f /etc/nginx/sites-enabled/default
+mkdir -p /etc/nginx/abbey.d
+```
+
+`/etc/nginx/sites-available/abbey-static.conf`
+```nginx
+upstream core_backend {
+    server 10.84.1.6:80;
+    server 10.84.1.7:80;
+}
+
+server {
+    listen 80;
+    server_name static.k41.com;
+
+    location / {
+        proxy_pass http://core_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    include /etc/nginx/abbey.d/*.conf;
+}
+```
+
+```sh
+ln -sf /etc/nginx/sites-available/abbey-static.conf /etc/nginx/sites-enabled/abbey-static.conf
+nginx -t
+service nginx restart
+```
+
+**Verifikasi** (dari klien, node yang dipakai: beta atau alpha)
+```sh
+# distribusi ke vault (obladi/desmond) — /node.txt berisi nama node
+for i in 1 2 3 4; do curl -s http://www.k41.com/node.txt; done
+
+# distribusi ke core (oblada/molly) — beranda menampilkan nama node
+for i in 1 2 3 4; do curl -s http://static.k41.com/; echo; done
+```
+
+Pada obladi dan desmond (serta oblada dan molly) dipantau bersamaan:
+```sh
+tail -f /var/log/apache2/access.log      # obladi, desmond
+tail -f /var/log/nginx/access.log        # oblada, molly
+```
+
+Header `Host` dan `X-Real-IP` dibuktikan dengan capture paket pada backend:
+```sh
+apt-get install -y tcpdump
+tcpdump -i any -A -s0 -l 'tcp dst port 80' 2>/dev/null | grep -iE '^(Host|X-Real-IP):'
+```
+
+Hasil yang diharapkan: nama node pada keluaran `curl` bergantian (obladi dan desmond, oblada dan molly); header yang tertangkap `Host: www.k41.com` (untuk vault) dan `Host: static.k41.com` (untuk core), dengan `X-Real-IP` berisi IP klien.
+
+<img width="1920" height="1080" alt="Screenshot 2026-10-01 184703" src="https://github.com/user-attachments/assets/4d8eadde-a6bd-4a71-a54c-19b72d960650" />
+
+## Soal 12
+Terdapat ruang khusus di penny yang yang menyimpan dokumen rahasia sindikat, oleh karena itu terapkan perlindungan basic authentication untuk path /admin. Akses ke jalur tersebut harus menolak pengunjung tanpa kredensial, dan hanya mengizinkan masuk jika menggunakan credential berikut:
+| username | password |
+|---|---|
+| prabs | `pakar_pinter_jadi_gob***` |
+
+### Ringkasan
+*Pasang basic authentication pada path `/admin` di penny. Pengunjung tanpa kredensial ditolak (401), dan hanya user `prabs` dengan password yang ditentukan yang boleh mas
+
+### 1. Langkah Pengerjaan
+1. Membuat folder `/var/www/admin` berisi halaman uji sebagai "dokumen rahasia".
+2. Membuat berkas kredensial `/etc/apache2/.htpasswd` dengan `htpasswd` untuk user `prabs` (password diapit petik tunggal karena memuat tanda `*`).
+3. Membuat potongan konfigurasi `penny.d/10-admin.conf`: `ProxyPass "/admin" "!"` agar `/admin` dilayani langsung oleh penny dan tidak diproxy ke vault, `Alias` ke folder admin, dan blok `<Directory>` dengan `AuthType Basic`.
+4. Memvalidasi dengan `apachectl configtest`, lalu restart Apache.
+5. Menguji tanpa kredensial, dengan kredensial salah, dan dengan kredensial benar.
+
+### 2. Command
+**penny** — `soal12-penny.sh`
+```sh
+mkdir -p /var/www/admin
+echo '<h1>Ruang Rahasia Sindikat - penny</h1>' > /var/www/admin/index.html
+htpasswd -bc /etc/apache2/.htpasswd prabs 'pakar_pinter_jadi_gob***'
+```
+
+`/etc/apache2/penny.d/10-admin.conf`
+```apache
+ProxyPass "/admin" "!"
+Alias "/admin" "/var/www/admin"
+<Directory "/var/www/admin">
+    AuthType Basic
+    AuthName "Area Admin"
+    AuthUserFile /etc/apache2/.htpasswd
+    Require valid-user
+</Directory>
+```
+
+```sh
+apachectl configtest
+service apache2 restart
+```
+
+**Verifikasi** (dari klien)
+```sh
+curl -I http://www.k41.com/admin/
+curl -I -u prabs:salah http://www.k41.com/admin/
+curl -u 'prabs:pakar_pinter_jadi_gob***' http://www.k41.com/admin/
+```
+
+Hasil yang diharapkan: dua perintah pertama `401 Unauthorized` (header `WWW-Authenticate: Basic`), perintah ketiga menampilkan isi halaman admin.
+
+<img width="1920" height="1080" alt="soal12_1" src="https://github.com/user-attachments/assets/38408341-192f-4778-aa46-c6c5bdab50ee" />
+
+<img width="1920" height="1080" alt="soal12_2" src="https://github.com/user-attachments/assets/12d7716e-f02f-4b63-9e9a-f1a9037ce728" />
+
+## Soal 13
+Setiap entitas dari luar harus memanggil gerbang dengan nama kanoniknya. Jika ada yang mencoba mengakses IP penny dan domain penny.xxx.com, paksa sistem untuk melakukan redirect secara permanen (status code 301) menuju www.xxx.com. Sebaliknya, jika ada yang mengakses IP abbey dan domain abbey.xxx.com, lakukan redirect sementara (status code 302) menuju static.xxx.com.
+
+### Ringkasan
+*Akses ke IP penny atau `penny.k41.com` diarahkan permanen (301) ke `www.k41.com`. Akses ke IP abbey atau `abbey.k41.com` diarahkan sementara (302) ke `static.k41.com`.*
+
+### 1. Langkah Pengerjaan
+1. Pada penny: membuat VirtualHost `000-penny-redirect.conf`. Awalan `000` membuatnya dimuat pertama sehingga menjadi vhost default, yang menangkap akses lewat IP maupun nama lain. Isinya `Redirect permanent / http://www.k41.com/`.
+2. Pada penny: menonaktifkan konfigurasi redirect lama bila ada, lalu restart Apache.
+3. Pada abbey: membuat server block `000-abbey-redirect.conf` dengan `default_server` dan `server_name abbey.k41.com _`, berisi `return 302 http://static.k41.com$request_uri`. Server block `static.k41.com` (Soal 11) tetap dipilih berdasarkan nama, sehingga tidak ikut dialihkan.
+4. Memvalidasi dengan `apachectl configtest` dan `nginx -t`, lalu restart.
+5. Menguji dengan `curl -I` ke IP dan nama domain gerbang masing-masing.
+
+### 2. Command
+**penny** — `soal13-penny.sh`
+```apache
+# /etc/apache2/sites-available/000-penny-redirect.conf
+<VirtualHost *:80>
+    ServerName penny.k41.com
+    Redirect permanent / http://www.k41.com/
+</VirtualHost>
+```
+```sh
+a2ensite 000-penny-redirect.conf
+apachectl configtest
+service apache2 restart
+```
+
+**abbey** — `soal13-abbey.sh`
+```nginx
+# /etc/nginx/sites-available/000-abbey-redirect.conf
+server {
+    listen 80 default_server;
+    server_name abbey.k41.com _;
+    return 302 http://static.k41.com$request_uri;
+}
+```
+```sh
+ln -sf /etc/nginx/sites-available/000-abbey-redirect.conf /etc/nginx/sites-enabled/
+nginx -t
+service nginx restart
+```
+
+**Verifikasi** (dari klien)
+```sh
+curl -I http://10.84.5.2          # IP penny      -> 301, Location: http://www.k41.com/
+curl -I http://penny.k41.com      # nama penny    -> 301, Location: http://www.k41.com/
+curl -I http://10.84.4.2          # IP abbey      -> 302, Location: http://static.k41.com/
+curl -I http://abbey.k41.com      # nama abbey    -> 302, Location: http://static.k41.com/
+curl -I http://www.k41.com/       # kanonik penny -> 200 (tidak dialihkan)
+curl -I http://static.k41.com/    # kanonik abbey -> 200 (tidak dialihkan)
+```
+
+> Catatan: konfigurasi redirect abbey tidak boleh menjadi satu-satunya server block di Nginx. Bila `static.k41.com` tidak punya server block sendiri (Soal 11), permintaan ke `static.k41.com` jatuh ke server block redirect dan menghasilkan redirect berulang ke dirinya sendiri.
+
+<img width="1920" height="1080" alt="soal13" src="https://github.com/user-attachments/assets/624be256-8efe-4414-b378-9379b17a65fe" />
+
+## Soal 14
+Di dalam The Mesh, rekam jejak tidak boleh dipalsukan oleh sistem. Pastikan access log pada setiap server web di area vault maupun area core mencatat alamat IP asli milik client (pengunjung) yang diteruskan oleh gerbang, dan bukan mencatat IP dari Penny ataupun Abbey.
+
+### Ringkasan
+*Access log di obladi, desmond (Apache) dan oblada, molly (Nginx) harus mencatat IP asli klien. Header `X-Real-IP` dari gerbang dipercaya hanya jika berasal dari penny (untuk vault) atau abbey (untuk core).*
+
+### 1. Langkah Pengerjaan
+1. Pada obladi dan desmond: mengaktifkan modul `remoteip` dan menulis `RemoteIPHeader X-Real-IP` serta `RemoteIPInternalProxy 10.84.5.2` (penny).
+2. Pada oblada dan molly: menulis `set_real_ip_from 10.84.4.2` (abbey) dan `real_ip_header X-Real-IP` pada `conf.d/realip.conf`, sehingga variabel `$remote_addr` berisi IP klien asli.
+3. Membersihkan percobaan lama (format log `X-Forwarded-For` yang tidak terpakai) agar tidak bertabrakan.
+4. Memvalidasi konfigurasi, lalu restart service.
+5. Mengirim permintaan dari klien lewat gerbang dan membaca access log backend.
+
+### 2. Command
+**obladi dan desmond** — `soal14-vault.sh`
+```sh
+a2disconf custom-log 2>/dev/null
+a2enmod remoteip
+cat > /etc/apache2/conf-available/realip.conf <<EOF
+RemoteIPHeader X-Real-IP
+RemoteIPInternalProxy 10.84.5.2
+EOF
+a2enconf realip
+apachectl configtest
+service apache2 restart
+```
+
+**oblada dan molly** — `soal14-core.sh`
+```sh
+cat > /etc/nginx/conf.d/realip.conf <<EOF
+set_real_ip_from 10.84.4.2;
+real_ip_header   X-Real-IP;
+EOF
+nginx -t
+service nginx reload
+```
+
+> Catatan: `RemoteIPInternalProxy` dipilih, bukan `RemoteIPTrustedProxy`. Pada pengujian, `RemoteIPTrustedProxy` tidak menggantikan alamat klien yang berada di rentang IP privat (10.84.x.x), sehingga log tetap mencatat IP penny.
+
+**Verifikasi**
+```sh
+# klien (mis. alpha, 10.84.6.2)
+ip -br a show eth0
+curl -s http://www.k41.com/node.txt
+curl -s http://static.k41.com/ > /dev/null
+
+# obladi / desmond
+tail -n 3 /var/log/apache2/access.log
+# oblada / molly
+tail -n 3 /var/log/nginx/access.log
+```
+
+Hasil yang diharapkan: kolom alamat pada baris log terakhir berisi IP klien (`10.84.6.2` bila dari alpha), bukan `10.84.5.2` (penny) atau `10.84.4.2` (abbey).
+
+<img width="1920" height="1080" alt="soal14_1" src="https://github.com/user-attachments/assets/fb944d36-0423-49ad-bde4-a55d7f4a27d2" />
+
+<img width="1920" height="1080" alt="soal14_2" src="https://github.com/user-attachments/assets/8c226657-732c-4d7e-989b-75914d1b2869" />
+
+<img width="1920" height="1080" alt="soal14_3" src="https://github.com/user-attachments/assets/1db0dd5e-65d6-4057-88f3-0dd50c555c8a" />
+
+## Soal 15
+Rootkit menginstruksikan pembuatan jalur proxy khusus yang berdiri sendiri. Pada penny buat reverse proxy untuk path /eternal yang menyajikan directory /var/www/eternal, dan pastikan path ini dapat mengeksekusi (rendering) file php. Pada abbey, buat jalur /orion yang menyajikan directory /var/www/orion, secara murni statis tanpa perlu rendering php.
+
+### Ringkasan
+*Pada penny, path `/eternal` diproxy ke backend lokal yang menyajikan `/var/www/eternal` dan mengeksekusi PHP. Pada abbey, path `/orion` menyajikan `/var/www/orion` sebagai berkas statis murni tanpa PHP.*
+
+### 1. Langkah Pengerjaan
+1. Pada penny: memasang `libapache2-mod-php`, lalu membuat `/var/www/eternal/index.php`.
+2. Pada penny: membuat backend yang berdiri sendiri, yaitu VirtualHost `127.0.0.1:8081` dengan `DocumentRoot /var/www/eternal` (`Listen 127.0.0.1:8081` pada `ports.conf`). Port ini hanya dapat diakses dari penny sendiri.
+3. Pada penny: menambahkan `penny.d/20-eternal.conf` berisi `ProxyPass "/eternal" "http://127.0.0.1:8081"` sehingga `/eternal` diproxy ke backend lokal tersebut.
+4. Pada abbey: membuat `/var/www/orion/index.html` dan berkas `tes.php` (untuk membuktikan PHP tidak dieksekusi).
+5. Pada abbey: menambahkan `abbey.d/20-orion.conf` yang dimuat ke dalam server block `static.k41.com`. Blok `location ^~ /orion/` memakai `root /var/www` dan tidak memuat `fastcgi_pass`.
+6. Memvalidasi konfigurasi, restart service, lalu menguji dari klien.
+   
+### 2. Command
+**penny** — `soal15-penny.sh`
+```sh
+apt-get install -y libapache2-mod-php php
+mkdir -p /var/www/eternal
+```
+
+`/var/www/eternal/index.php`
+```php
+<?php
+echo "<h1>Eternal - penny</h1>";
+echo "<p>PHP dieksekusi. Versi: " . phpversion() . "</p>";
+echo "<p>Waktu: " . date('Y-m-d H:i:s') . "</p>";
+```
+
+`/etc/apache2/sites-available/020-penny-eternal.conf`
+```apache
+<VirtualHost 127.0.0.1:8081>
+    DocumentRoot /var/www/eternal
+    <Directory /var/www/eternal>
+        Require all granted
+        DirectoryIndex index.php index.html
+    </Directory>
+    ErrorLog  ${APACHE_LOG_DIR}/eternal_error.log
+    CustomLog ${APACHE_LOG_DIR}/eternal_access.log combined
+</VirtualHost>
+```
+
+`/etc/apache2/penny.d/20-eternal.conf`
+```apache
+ProxyPass        "/eternal" "http://127.0.0.1:8081"
+ProxyPassReverse "/eternal" "http://127.0.0.1:8081"
+```
+
+```sh
+echo 'Listen 127.0.0.1:8081' >> /etc/apache2/ports.conf
+a2ensite 020-penny-eternal.conf
+apachectl configtest
+service apache2 restart
+```
+
+**abbey** — `soal15-abbey.sh`
+```sh
+mkdir -p /var/www/orion
+echo '<h1>Orion - abbey</h1><p>Halaman statis murni.</p>' > /var/www/orion/index.html
+echo '<?php echo "PHP dieksekusi (SALAH)"; ?>' > /var/www/orion/tes.php
+```
+
+`/etc/nginx/abbey.d/20-orion.conf`
+```nginx
+location = /orion { return 301 /orion/; }
+location ^~ /orion/ {
+    root /var/www;
+    index index.html;
+}
+```
+
+```sh
+nginx -t
+service nginx restart
+```
+
+**Verifikasi** (dari klien)
+```sh
+curl http://www.k41.com/eternal/            # PHP dirender menjadi HTML
+curl http://static.k41.com/orion/           # halaman statis
+curl http://static.k41.com/orion/tes.php    # kode PHP tampil mentah, tidak dieksekusi
+curl -I http://static.k41.com/orion         # 301 ke /orion/
+```
+
+> Catatan: pada percobaan awal, `/orion` menghasilkan `302 Found` karena potongan konfigurasi ditempatkan pada server block redirect (Soal 13), bukan pada server block `static.k41.com`. Percobaan awal `/eternal` menghasilkan `404` karena permintaan ikut diproxy ke vault. Kunci perbaikannya: potongan khusus dimuat sebelum `ProxyPass "/"` di penny, dan include `/orion` diletakkan di dalam server block `static.k41.com` di abbey.
+
+
+<img width="1920" height="1080" alt="soal15_1" src="https://github.com/user-attachments/assets/3cf3bdf4-fceb-455d-9699-21cca851d629" />
+
+<img width="1920" height="1080" alt="soal15_2" src="https://github.com/user-attachments/assets/499b3b6d-d02f-4e50-9d65-e0ab231d586d" />
+
+## Soal 16
+Ketahanan gerbang The Mesh harus diuji untuk menghadapi bombardir permintaan. Salah satu Klien (misal: Alpha) bertugas melakukan stress test benchmark menggunakan ApacheBench. Lakukan 250 requests dengan tingkat konkurensi (concurrencies) 10 untuk masing - masing titik akhir: www.xxx.com dan static.xxx.com. Tampilkan rangkuman hasilnya.
+
+### Ringkasan
+*Dari alpha, jalankan ApacheBench dengan 250 request dan konkurensi 10 ke `www.k41.com` dan `static.k41.com`, lalu tampilkan rangkuman hasilnya.*
+
+### 1. Langkah Pengerjaan
+1. Memasang `apache2-utils` pada alpha (menyediakan perintah `ab`).
+2. Menjalankan `ab -n 250 -c 10` ke `http://www.k41.com/` dan `http://static.k41.com/` (garis miring di akhir wajib ada).
+3. Menyimpan keluaran lengkap ke berkas dan menampilkan rangkuman metrik utama.
+   
+### 2. Command
+**alpha** — `soal16-alpha.sh`
+```sh
+apt-get update
+apt-get install -y apache2-utils
+
+ab -n 250 -c 10 http://www.k41.com/    | tee /root/ab-www.txt
+ab -n 250 -c 10 http://static.k41.com/ | tee /root/ab-static.txt
+
+grep -E 'Concurrency Level|Time taken|Complete requests|Failed requests|Non-2xx|Requests per second|Time per request' /root/ab-www.txt /root/ab-static.txt
+```
+
+**Rangkuman hasil**
+
+| Metrik | www.k41.com (penny → vault) | static.k41.com (abbey → core) |
+|---|---|---|
+| Complete requests | 250 | 250 |
+| Concurrency level | 10 | 10 |
+| Failed requests | 0 | 0 |
+| Non-2xx responses | tidak ada | tidak ada *(setelah Soal 11 dan 13 benar)* |
+| Requests per second | 511,48 #/sec | *(isi dari hasil `ab` terbaru)* |
+| Time per request (mean) | 19,551 ms | *(isi dari hasil `ab` terbaru)* |
+| Time per request (across all concurrent) | 1,955 ms | *(isi dari hasil `ab` terbaru)* |
+
+> Catatan: pada percobaan awal, `ab` ke `static.k41.com` melaporkan `Non-2xx responses: 250` karena abbey masih membalas dengan redirect 302 (server block `static.k41.com` belum ada). Setelah Soal 11 dan 13 diperbaiki, seluruh respons bernilai 2xx.
+
+
+<img width="1920" height="1080" alt="soal16_1" src="https://github.com/user-attachments/assets/d1fe78ad-4c95-47de-8dc9-c70f127d31ca" />
+
+<img width="1920" height="1080" alt="soal16_2" src="https://github.com/user-attachments/assets/00493b40-43e3-439b-a457-1603f6038746" />
+
+## Soal 17
+Tambahkan TXT record pada DNS untuk semua klien sayap kiri dan sayap kanan (Alpha, Beta, Gamma, Delta, Epsilon). Jika DNS di-query TXT terhadap nama domain mereka (contoh: alpha.<xxxx>.com), sistem harus mengembalikan teks berupa nama hostname mereka masing-masing (contoh: "alpha").
+
+### Ringkasan
+*Tambahkan TXT record untuk alpha, beta, gamma, delta, dan epsilon pada zona `k41.com` di prab. Query TXT ke `alpha.k41.com` harus mengembalikan `"alpha"`, dan seterusnya.*
+
+### 1. Langkah Pengerjaan
+1. Menambahkan lima TXT record pada `/etc/bind/jarkom/k41.com` di prab (nama domain sama dengan A record klien, nilai berupa hostname).
+2. Menaikkan serial SOA agar tedd menarik zona terbaru.
+3. Memvalidasi dengan `named-checkzone`, lalu `service named restart` di prab, kemudian tedd.
+4. Menguji `dig TXT` ke prab dan tedd.
+   
+### 2. Command
+*prab** — tambahan di `/etc/bind/jarkom/k41.com` (`soal17-prab.sh`)
+```
+alpha    IN  TXT  "alpha"
+beta     IN  TXT  "beta"
+gamma    IN  TXT  "gamma"
+delta    IN  TXT  "delta"
+epsilon  IN  TXT  "epsilon"
+```
+
+```sh
+named-checkzone k41.com /etc/bind/jarkom/k41.com
+service named restart        # prab, lalu tedd
+```
+
+**Verifikasi**
+```sh
+dig TXT alpha.k41.com @10.84.1.2
+dig TXT alpha.k41.com @10.84.1.3
+for h in alpha beta gamma delta epsilon; do dig +short TXT $h.k41.com; done
+```
+
+Hasil yang diharapkan: jawaban `"alpha"`, `"beta"`, `"gamma"`, `"delta"`, `"epsilon"` dengan flag `aa`, dan serial SOA prab sama dengan tedd.
+
+
+<img width="1920" height="1080" alt="soal17_1" src="https://github.com/user-attachments/assets/1efe4e4e-147e-49b0-971d-0cc20f3c762c" />
+
+<img width="1920" height="1080" alt="soal17_2" src="https://github.com/user-attachments/assets/8642c60e-6e0a-4171-8340-8b5fb7c5543f" />
+
+## Soal 18
+Ubah A record DNS milik abbey.xxx.com ke alamat IP yang fiktif (ubah secara random namun pastikan format IP valid). Naikkan nilai serial SOA di prab dan pastikan tedd ikut tersinkron. Tetapkan TTL sebesar 15 detik pada record yang relevan tersebut. Verifikasi momen yang terjadi pada tiga fase pencarian: sebelum perubahan terjadi (mengembalikan IP lama), saat perubahan baru saja terjadi dalam jeda 15 detik (masih IP lama karena cache), dan setelah batas waktu TTL habis (berubah ke IP fiktif yang baru).
+
+### Ringkasan
+*Ubah A record `abbey.k41.com` ke IP fiktif dengan TTL 15 detik, naikkan serial SOA, pastikan tedd sinkron, lalu verifikasi tiga fase: sebelum perubahan, saat 15 detik pertama (cache), dan setelah TTL habis.*
+
+### 1. Langkah Pengerjaan
+1. Menetapkan TTL 15 detik **pada record abbey saja** (`abbey 15 IN A ...`), bukan pada seluruh zona.
+2. Memasang resolver cache kecil (`dnsmasq`, port 5353) pada prab yang meneruskan ke BIND prab. Server otoritatif tidak menyimpan cache untuk zonanya sendiri, sehingga tanpa resolver cache fase "masih IP lama karena cache" tidak dapat diamati. Resolver ini berperan sebagai resolver klien.
+3. **Fase 1** — mencatat jawaban sebelum perubahan (IP lama `10.84.4.2`).
+4. Mengubah A record abbey ke IP fiktif `192.0.2.99`, menaikkan serial SOA, reload BIND.
+5. **Fase 2** — langsung `dig` kembali (kurang dari 15 detik): jawaban masih IP lama dari cache dan TTL menurun.
+6. Menunggu 16 detik. **Fase 3** — `dig` kembali: jawaban berubah ke IP fiktif.
+7. Memverifikasi serial SOA di prab dan tedd sama, dan abbey di tedd sudah mengembalikan IP fiktif.
+
+### 2. Command
+**prab** — `soal18-prab.sh`
+```sh
+apt-get install -y dnsmasq-base dnsutils
+dnsmasq -C /dev/null --port=5353 --listen-address=127.0.0.1 --bind-interfaces \
+        --no-resolv --no-hosts --server=10.84.1.2#53 --cache-size=150 --pid-file=/run/dnsmasq-test.pid
+```
+
+Baris abbey di `/etc/bind/jarkom/k41.com` diubah dengan `sed`; contoh hasil akhir:
+```
+abbey   15  IN  A   192.0.2.99
+```
+
+Alur fase pada skrip:
+```sh
+# persiapan: IP asli dengan TTL 15 detik (serial dinaikkan, BIND di-reload)
+dig @127.0.0.1 -p 5353 abbey.k41.com A +noall +answer     # FASE 1: 10.84.4.2
+
+# ubah ke IP fiktif, naikkan serial, reload BIND
+dig @127.0.0.1 -p 5353 abbey.k41.com A +noall +answer     # FASE 2: masih 10.84.4.2 (cache)
+
+sleep 16
+dig @127.0.0.1 -p 5353 abbey.k41.com A +noall +answer     # FASE 3: 192.0.2.99
+```
+
+**Verifikasi sinkron tedd**
+```sh
+dig +short SOA k41.com @10.84.1.2
+dig +short SOA k41.com @10.84.1.3
+dig +short abbey.k41.com @10.84.1.3
+```
+
+<img width="1920" height="1080" alt="soal18_1" src="https://github.com/user-attachments/assets/c83f801b-b433-4390-a534-f69ea94b87e6" />
+
+<img width="1920" height="1080" alt="soal18_2" src="https://github.com/user-attachments/assets/79033972-c733-408c-be6c-6aad7d3522f2" />
+
+<img width="1920" height="1080" alt="soal18_3" src="https://github.com/user-attachments/assets/f669cfa2-be2d-4cd2-8bb8-550c69943919" />
+
+<img width="1920" height="1080" alt="soal18_4" src="https://github.com/user-attachments/assets/bbb81d0c-e555-4d86-8829-cbf9b968c4ec" />
+
+## Soal 19
+Last? But not least? Buat CNAME record yang melakukan binding dari domain internal outbound.xxx.com menuju domain eksternal http.badssl.com, Lakukan perintah curl ke http://outbound.xxx.com dan pastikan output yang dihasilkan sesuai dengan isi konten di halaman http.badssl.com.
+
+### Ringkasan
+*Buat CNAME `outbound.k41.com` menuju `http.badssl.com`, lalu `curl http://outbound.k41.com` harus menghasilkan konten yang sama dengan `http.badssl.com`.*
+
+### 1. Langkah Pengerjaan
+1. Menambahkan CNAME `outbound` pada zona `k41.com` di prab. Titik di akhir `http.badssl.com.` wajib ada agar dibaca sebagai FQDN dan tidak ditambahi `k41.com`.
+2. Menaikkan serial SOA, memvalidasi, lalu restart `named` di prab dan tedd.
+3. Memastikan prab dapat merekursi ke luar lewat forwarder `192.168.122.1` (agar CNAME ke domain eksternal dapat ter-resolve).
+4. Menjalankan `dig` dan `curl` dari klien, lalu membandingkan keluarannya dengan `curl http://http.badssl.com`.
+   
+### 2. Command
+**prab** — tambahan di `/etc/bind/jarkom/k41.com` (`soal19-prab.sh`)
+```
+outbound  IN  CNAME  http.badssl.com.
+```
+
+```sh
+named-checkzone k41.com /etc/bind/jarkom/k41.com
+service named restart        # prab, lalu tedd
+```
+
+**Verifikasi** (dari klien)
+```sh
+dig outbound.k41.com
+curl http://outbound.k41.com
+curl http://http.badssl.com
+diff <(curl -s http://outbound.k41.com) <(curl -s http://http.badssl.com) && echo SAMA
+```
+
+<img width="1920" height="1080" alt="soal19_1" src="https://github.com/user-attachments/assets/87317660-b360-4fdd-bfaa-6b1b86bdfbd0" />
+<img width="1920" height="1080" alt="soal19_2" src="https://github.com/user-attachments/assets/9927d6f1-1b55-40d8-bfd1-5d083a3eaba5" />
+
+## Soal 20
+Setelah semua penyelesaian selesai, pastikan semua service dan konfigurasi yang telah dikerjakan dari awal tetap berjalan normal dan berstatus autostart saat node di-restart (khusus untuk kasus ini, abaikan konfigurasi nomor 18 dan biarkan koordinat kembali normal).
+
+### Ringkasan
+*Pastikan semua service dan konfigurasi tetap berjalan dan otomatis hidup setelah node di-restart. Konfigurasi Soal 18 dikembalikan ke normal.*
+
+### 1. Langkah Pengerjaan
+1. Mengembalikan A record abbey ke `10.84.4.2` (TTL kembali ke default zona), menaikkan serial SOA, reload BIND, lalu mematikan resolver cache uji Soal 18 (`soal18-revert.sh`).
+2. Node GNS3 berbasis container tanpa systemd, sehingga service dinyalakan melalui blok autostart pada `/root/.bashrc` yang dijalankan saat console dibuka. Blok ini menulis ulang `/etc/resolv.conf` (prab → tedd → 192.168.122.1) dan menyalakan service bila belum berjalan.
+3. Memasang blok autostart sesuai peran node: `apache2` (penny, obladi, desmond), `nginx` (abbey), `nginx` dan `php-fpm` (oblada, molly), `named` (prab, tedd).
+4. Mematikan lalu menyalakan kembali node di GNS3, membuka console, dan memeriksa resolver serta status service.
+5. Menguji ulang alur utama (`www`, `static`, `/admin`, DNS) dari klien.
+   
+### 2. Command
+**prab** — `soal18-revert.sh`
+```sh
+sed -i -E 's/^abbey[[:space:]].*/abbey IN A 10.84.4.2/' /etc/bind/jarkom/k41.com
+# serial dinaikkan, lalu:
+service named restart
+dig +short abbey.k41.com @10.84.1.2        # 10.84.4.2
+```
+
+**Setiap node (kecuali rootkit)** — `soal20-autostart.sh <service>`
+```sh
+bash /root/soal20-autostart.sh apache2        # penny, obladi, desmond
+bash /root/soal20-autostart.sh nginx          # abbey
+bash /root/soal20-autostart.sh nginx php      # oblada, molly
+bash /root/soal20-autostart.sh named          # prab, tedd
+bash /root/soal20-autostart.sh                # klien (hanya resolver)
+```
+
+Blok yang ditambahkan pada `/root/.bashrc` (contoh node nginx + php):
+```sh
+# >>> mesh-autostart >>>
+printf 'nameserver 10.84.1.2\nnameserver 10.84.1.3\nnameserver 192.168.122.1\n' > /etc/resolv.conf
+service nginx status >/dev/null 2>&1 || service nginx start >/dev/null 2>&1
+for f in /etc/init.d/php*-fpm; do ... ; done
+# <<< mesh-autostart <<<
+```
+
+**Verifikasi** (setelah node di-stop lalu di-start dari GNS3)
+```sh
+cat /etc/resolv.conf
+service apache2 status      # penny, obladi, desmond
+service nginx status        # abbey, oblada, molly
+service named status        # prab, tedd
+
+# dari klien
+curl -I http://www.k41.com/
+curl -I http://static.k41.com/
+curl -I http://www.k41.com/admin/
+dig +short abbey.k41.com
+```
+
+> Catatan: paket dan konfigurasi dapat hilang bila node di-reset penuh. Karena itu seluruh langkah disimpan sebagai script di `/root` dan di folder `script/`. `jalankan-semua.sh` membangun ulang seluruh konfigurasi satu node secara berurutan.
+
+<img width="1920" height="1080" alt="soal20" src="https://github.com/user-attachments/assets/0bff5ef5-fe90-4f22-80d6-6a5616aba7ca" />

@@ -1,4 +1,4 @@
-<img width="1920" height="1080" alt="ss-10" src="https://github.com/user-attachments/assets/99bd9826-bd6b-4111-a572-eaae9a1cdc25" /># Jarkom-Modul-2-2026-K-41
+# Jarkom-Modul-2-2026-K-41
 
 |         Nama         |     NRP     |
 |----------------------|-------------|

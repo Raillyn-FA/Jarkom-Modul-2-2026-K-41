@@ -1054,25 +1054,34 @@ Di dalam The Mesh, rekam jejak tidak boleh dipalsukan oleh sistem. Pastikan acce
 ### 2. Command
 **obladi dan desmond** — `soal14-vault.sh`
 ```sh
+#!/bin/bash
+
 a2disconf custom-log 2>/dev/null
+a2disconf remoteip-penny 2>/dev/null
+rm -f /etc/apache2/conf-available/custom-log.conf /etc/apache2/conf-available/remoteip-penny.conf
+
 a2enmod remoteip
-cat > /etc/apache2/conf-available/realip.conf <<EOF
+cat > /etc/apache2/conf-available/realip.conf <<'EOF'
 RemoteIPHeader X-Real-IP
 RemoteIPInternalProxy 10.84.5.2
 EOF
 a2enconf realip
-apachectl configtest
-service apache2 restart
+
+apachectl configtest && service apache2 restart
 ```
 
 **oblada dan molly** — `soal14-core.sh`
 ```sh
-cat > /etc/nginx/conf.d/realip.conf <<EOF
+#!/bin/bash
+
+grep -rl proxy_ip /etc/nginx 2>/dev/null | xargs -r sed -i '/log_format proxy_ip/d; s| proxy_ip;|;|'
+
+cat > /etc/nginx/conf.d/realip.conf <<'EOF'
 set_real_ip_from 10.84.4.2;
-real_ip_header   X-Real-IP;
+real_ip_header X-Real-IP;
 EOF
-nginx -t
-service nginx reload
+
+nginx -t && service nginx restart
 ```
 
 > Catatan: `RemoteIPInternalProxy` dipilih, bukan `RemoteIPTrustedProxy`. Pada pengujian, `RemoteIPTrustedProxy` tidak menggantikan alamat klien yang berada di rentang IP privat (10.84.x.x), sehingga log tetap mencatat IP penny.
@@ -1081,7 +1090,7 @@ service nginx reload
 ```sh
 # klien (mis. alpha, 10.84.6.2)
 ip -br a show eth0
-curl -s http://www.k41.com/node.txt
+curl -s http://www.k41.com/info.txt
 curl -s http://static.k41.com/ > /dev/null
 
 # obladi / desmond

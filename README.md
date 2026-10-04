@@ -1193,9 +1193,37 @@ service apache2 restart
 
 **abbey** — `soal15-abbey.sh`
 ```sh
-mkdir -p /var/www/orion
-echo '<h1>Orion - abbey</h1><p>Halaman statis murni.</p>' > /var/www/orion/index.html
-echo '<?php echo "PHP dieksekusi (SALAH)"; ?>' > /var/www/orion/tes.php
+#!/bin/bash
+mkdir -p /var/www/orion /etc/nginx/abbey.d
+
+cat > /var/www/orion/index.html <<'EOF'
+<!DOCTYPE html>
+<html>
+<head><title>Orion</title></head>
+<body><h1>Orion Static Page di Abbey</h1></body>
+</html>
+EOF
+
+cat > /var/www/orion/tes.php <<'EOF'
+<?php echo "Kalau ini terbaca sebagai kode, PHP tidak dirender"; ?>
+EOF
+
+cat > /etc/nginx/abbey.d/orion.conf <<'EOF'
+location = /orion {
+    return 301 /orion/;
+}
+
+location /orion/ {
+    alias /var/www/orion/;
+    index index.html;
+}
+EOF
+
+# bersihkan sisa percobaan lama di server block redirect
+sed -i '/snippets\/orion.conf/d' /etc/nginx/sites-available/redirect-abbey 2>/dev/null
+rm -f /etc/nginx/snippets/orion.conf
+
+nginx -t && service nginx restart
 ```
 
 `/etc/nginx/abbey.d/20-orion.conf`

@@ -847,10 +847,40 @@ service apache2 restart
 
 **abbey** — `soal11-abbey.sh`
 ```sh
-apt-get update
-apt-get install -y nginx
+#!/bin/bash
+
+[ -x /usr/sbin/nginx ] || {
+  apt-get update -y
+  apt-get install -y nginx
+}
+
 rm -f /etc/nginx/sites-enabled/default
 mkdir -p /etc/nginx/abbey.d
+
+cat > /etc/nginx/sites-available/abbey-static.conf <<'EOF'
+upstream core_backend {
+    server 10.84.1.6:80;   # oblada
+    server 10.84.1.7:80;   # molly
+}
+
+server {
+    listen 80;
+    server_name static.k41.com;
+
+    location / {
+        proxy_pass http://core_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    include /etc/nginx/abbey.d/*.conf;
+}
+EOF
+
+ln -sf /etc/nginx/sites-available/abbey-static.conf /etc/nginx/sites-enabled/abbey-static.conf
+nginx -t && service nginx restart
 ```
 
 `/etc/nginx/sites-available/abbey-static.conf`

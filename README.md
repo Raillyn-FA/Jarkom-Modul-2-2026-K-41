@@ -926,9 +926,29 @@ Terdapat ruang khusus di penny yang yang menyimpan dokumen rahasia sindikat, ole
 ### 2. Command
 **penny** — `soal12-penny.sh`
 ```sh
-mkdir -p /var/www/admin
-echo '<h1>Ruang Rahasia Sindikat - penny</h1>' > /var/www/admin/index.html
+#!/bin/bash
+apt-get install -y apache2-utils
+
+mkdir -p /etc/apache2/penny.d /var/www/admin
+
+echo "Ruang Rahasia Sindikat - Area Admin" > /var/www/admin/index.html
 htpasswd -bc /etc/apache2/.htpasswd prabs 'pakar_pinter_jadi_gob***'
+
+cat > /etc/apache2/penny.d/10-admin.conf <<'EOF'
+ProxyPass "/admin" "!"
+Alias "/admin" "/var/www/admin"
+
+<Directory /var/www/admin>
+    AuthType Basic
+    AuthName "Area Rahasia Sindikat"
+    AuthUserFile /etc/apache2/.htpasswd
+    Require valid-user
+    Options FollowSymLinks
+    AllowOverride None
+</Directory>
+EOF
+
+apachectl configtest && service apache2 restart
 ```
 
 `/etc/apache2/penny.d/10-admin.conf`
@@ -1095,8 +1115,37 @@ Rootkit menginstruksikan pembuatan jalur proxy khusus yang berdiri sendiri. Pada
 ### 2. Command
 **penny** — `soal15-penny.sh`
 ```sh
-apt-get install -y libapache2-mod-php php
-mkdir -p /var/www/eternal
+#!/bin/bash
+apt-get install -y php-fpm
+a2enmod proxy_fcgi
+
+for s in /etc/init.d/php*-fpm; do $s start; done
+SOCK=$(ls /run/php/php*-fpm.sock | head -1)
+
+mkdir -p /etc/apache2/penny.d /var/www/eternal
+
+cat > /var/www/eternal/index.php <<'EOF'
+<?php
+echo "Eternal PHP Rendered Successfully di Penny";
+echo "<br>Hostname: " . gethostname();
+?>
+EOF
+
+cat > /etc/apache2/penny.d/20-eternal.conf <<EOF
+ProxyPass "/eternal" "!"
+Alias "/eternal" "/var/www/eternal"
+
+<Directory /var/www/eternal>
+    Options FollowSymLinks
+    DirectoryIndex index.php
+    Require all granted
+    <FilesMatch "\.php\$">
+        SetHandler "proxy:unix:${SOCK}|fcgi://localhost"
+    </FilesMatch>
+</Directory>
+EOF
+
+apachectl configtest && service apache2 restart
 ```
 
 `/var/www/eternal/index.php`

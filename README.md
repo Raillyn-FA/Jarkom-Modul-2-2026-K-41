@@ -118,14 +118,8 @@ iface eth0 inet static
 ip -br a
 ping -c 3 10.84.1.1
 ```
-![Konfigurasi interfaces rootkit](assets/s01-interfaces-rootkit.png)
+![Soal1](assets/Soal1.png)
  
-
-![IP seluruh node](assets/s01-ip-br-a.png)
- 
-
-![Ping antar node](assets/s01-ping.png)
-
 ---
 
 ## Soal 2
@@ -163,11 +157,11 @@ iptables -t nat -L POSTROUTING -n -v
 ping -c 5 8.8.8.8
 ```
  
-![eth5 dan rule NAT](assets/s02-nat-rootkit.png)
+![eth5 dan rule NAT](assets/Soal2.png)
  
 > 📸 `ip -br a show eth5` (terlihat IP DHCP 192.168.122.x) dan `iptables -t nat -L POSTROUTING -n -v` di rootkit.
  
-![Ping internet dari alpha](assets/s02-ping-8888-alpha.png)
+![Ping internet dari alpha](assets/Soal2_1.png)
  
 > 📸 `ping -c 5 8.8.8.8` dari alpha berhasil.
 ---
@@ -206,12 +200,8 @@ ping -c 3 google.com                # alpha -> internet via nama
  
 > Catatan: pada Soal 4 urutan resolver diganti menjadi prab → tedd → 192.168.122.1. Baris `up` di atas hanya dipakai sampai tahap DNS internal hidup, karena akan menimpa urutan resolver yang baru. Lihat Soal 4 dan Soal 20.
  
-![resolv.conf alpha](assets/s03-resolv-alpha.png)
- 
-> 📸 `cat /etc/resolv.conf` di alpha berisi `nameserver 192.168.122.1`.
- 
-![Ping lintas subnet](assets/s03-ping-lintas-subnet.png)
- 
+![resolv.conf alpha](assets/Soal3.png)
+
 > 📸 Ping lintas subnet dari minimal dua node berbeda (mis. alpha→delta, alpha→molly, penny→abbey) dan `ping -c 3 google.com`.
 
 ---
@@ -316,30 +306,8 @@ dig @10.84.1.2 k41.com SOA
 dig @10.84.1.3 k41.com SOA      # cari flag "aa" pada baris flags
 ```
  
-![named.conf prab](assets/s04-conf-prab.png)
- 
-> 📸 `cat /etc/bind/named.conf.local` dan `named.conf.options` di prab.
- 
-![Zona k41.com](assets/s04-zone-prab.png)
- 
-> 📸 Isi `/etc/bind/jarkom/k41.com` dan hasil `named-checkzone ... OK`.
- 
-![named.conf tedd](assets/s04-conf-tedd.png)
- 
-> 📸 `cat /etc/bind/named.conf.local` di tedd (zona slave).
- 
-![Resolver alpha](assets/s04-resolv-alpha.png)
- 
-> 📸 `cat /etc/resolv.conf` di alpha berisi urutan prab → tedd → 192.168.122.1.
- 
-![Query DNS ke prab dan tedd](assets/s04-host-prab-tedd.png)
- 
-> 📸 `host k41.com 10.84.1.2` dan `host prab.k41.com 10.84.1.3`.
- 
-![Authoritative dari tedd](assets/s04-dig-aa-tedd.png)
- 
-> 📸 `dig @10.84.1.3 k41.com SOA` dengan flag `aa` terlihat jelas.
- 
+![named.conf prab](assets/Soal4.png)
+
 ---
  
 ## Soal 5
@@ -391,16 +359,8 @@ ping -c 1 $(hostname)
 host alpha.k41.com
 ping -c 3 molly.k41.com        # dari alpha
 ```
- 
-![Hostname tiap node](assets/s05-hostname.png)
- 
-> 📸 Output `hostname` dan `cat /etc/hosts` dari beberapa node (idealnya semua 14, boleh digabung per segmen).
- 
-![Zona setelah ditambah](assets/s05-zone-prab.png)
- 
-> 📸 Isi `/etc/bind/jarkom/k41.com` setelah A record ditambah, beserta serial `2026093002`.
- 
-![Resolusi hostname](assets/s05-host-ping.png)
+
+![Resolusi hostname](assets/Soal5.png)
  
 > 📸 `host alpha.k41.com` dan `ping -c 3 molly.k41.com` dari alpha.
  
@@ -427,14 +387,6 @@ host -t SOA k41.com 10.84.1.3     # tedd
 Jika serial berbeda: naikkan serial di prab, `service named restart` di prab, lalu `service named restart` di tedd.
  
 Hasil yang diharapkan: kedua perintah menampilkan SOA dengan serial yang sama (`2026093002` pada tahap ini).
- 
-![Serial SOA prab dan tedd](assets/s06-soa-serial.png)
- 
-> 📸 Kedua perintah `host -t SOA` berdampingan, serial terlihat sama.
- 
-![File zona di tedd](assets/s06-tedd-zone-file.png)
- 
-> 📸 `ls -l /var/lib/bind/` di tedd yang menunjukkan file zona hasil transfer.
  
 ---
  
@@ -483,13 +435,9 @@ host static.k41.com
  
 Hasil yang diharapkan: `vault` → 10.84.1.4 dan 10.84.1.5; `core` → 10.84.1.6 dan 10.84.1.7; `www` alias penny (10.84.5.2); `static` alias abbey (10.84.4.2).
  
-![Verifikasi dari alpha](assets/s07-host-alpha.png)
- 
-> 📸 Keempat perintah `host` dijalankan di **alpha**.
- 
-![Verifikasi dari beta](assets/s07-host-beta.png)
- 
-> 📸 Keempat perintah `host` dijalankan di **beta** (klien berbeda).
+![Verifikasi dari alpha](assets/Soal7_1.png)
+
+![Verifikasi dari beta](assets/Soal7_2.png)
  
 ---
  
@@ -604,22 +552,8 @@ dig @10.84.1.3 -x 10.84.5.2
 dig @10.84.1.3 -x 10.84.1.7
 ```
  
-![Reverse zone di prab](assets/s08-reverse-prab.png)
- 
-> 📸 `named.conf.local` prab dan isi tiga file `.rev`, serta hasil `named-checkzone`.
- 
-![Slave reverse di tedd](assets/s08-reverse-tedd.png)
- 
-> 📸 `named.conf.local` tedd dan `ls -l /var/lib/bind/` (tiga file `.rev` hasil transfer).
- 
-![Reverse lookup](assets/s08-host-reverse.png)
- 
-> 📸 `host` untuk semua IP: abbey, penny, obladi, desmond, oblada, molly.
- 
-![Authoritative reverse](assets/s08-dig-aa.png)
- 
-> 📸 `dig @10.84.1.3 -x ...` dengan flag `aa` terlihat (minimal untuk abbey dan penny).
- 
+![Reverse zone di prab](assets/Soal8.png)
+
 ---
  
 ## Soal 9
@@ -676,17 +610,9 @@ curl desmond.k41.com
 curl vault.k41.com       # round robin: ulangi beberapa kali
 ```
  
-![Konfigurasi Apache](assets/s09-apache-conf.png)
- 
-> 📸 Isi `000-default.conf` dan `ls /arsip/` di obladi (dan desmond).
- 
-![curl obladi dan desmond](assets/s09-curl-obladi-desmond.png)
- 
-> 📸 `curl obladi.k41.com` dan `curl desmond.k41.com` menampilkan halaman `Index of /`.
- 
-![curl vault](assets/s09-curl-vault.png)
- 
-> 📸 `curl vault.k41.com` dijalankan beberapa kali, terlihat bergantian (bila perlu bedakan lewat isi `info.txt`).
+![Konfigurasi Apache](assets/Soal9_1.png)
+
+![curl obladi dan desmond](assets/Soal9_1.png)
  
 ---
  
@@ -772,21 +698,7 @@ curl core.k41.com             # round robin: ulangi beberapa kali
 curl core.k41.com/profil
 ```
  
-![Konfigurasi Nginx](assets/s10-nginx-conf.png)
- 
-> 📸 Isi `/etc/nginx/sites-available/default`, `index.php`, dan `profil.php` di salah satu node.
- 
-![curl beranda](assets/s10-curl-beranda.png)
- 
-> 📸 `curl oblada.k41.com` dan `curl molly.k41.com` (halaman beranda).
- 
-![curl profil](assets/s10-curl-profil.png)
- 
-> 📸 `curl oblada.k41.com/profil` dan `curl molly.k41.com/profil` (clean URL, tanpa `.php`).
- 
-![curl core](assets/s10-curl-core.png)
- 
-> 📸 `curl core.k41.com` dan `curl core.k41.com/profil` beberapa kali, terlihat bergantian oblada dan molly.
+![Konfigurasi Nginx](assets/Soal10.png)
 
 ## Soal 11
 Konfigurasikan Penny (menggunakan Apache) sebagai reverse proxy yang mengarah ke semua node di area vault (Obladi & Desmond).
